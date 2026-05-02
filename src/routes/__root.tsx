@@ -33,10 +33,14 @@ export const Route = createRootRoute({
       { name: "description", content: "Ruti conecta usuarios y conductores con seguridad, transparencia y validación documental." },
       { name: "author", content: "Ruti" },
       { property: "og:title", content: "Ruti — Transporte urbano confiable" },
-      { property: "og:description", content: "Solicita transporte por voz, conoce a tu conductor y viaja seguro." },
+      { property: "og:description", content: "Ruti conecta usuarios y conductores con seguridad, transparencia y validación documental." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Ruti — Transporte urbano confiable" },
+      { name: "twitter:description", content: "Ruti conecta usuarios y conductores con seguridad, transparencia y validación documental." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/kkcUz2teDdMtl9zeK64vEOGI0Zc2/social-images/social-1777692055125-Captura_de_pantalla_2026-05-01_221724.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/kkcUz2teDdMtl9zeK64vEOGI0Zc2/social-images/social-1777692055125-Captura_de_pantalla_2026-05-01_221724.webp" },
     ],
     links: [
       {
