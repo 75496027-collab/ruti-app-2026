@@ -5,7 +5,7 @@ import { Mic, MicOff, Upload, CheckCircle2, AlertTriangle, FileText, Bot } from 
 import { documentosBase, type DocumentoConductor } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/registro/conductor")({
-  component: RegistroConductor;
+  component: RegistroConductor,
 });
 
 function RegistroConductor() {
