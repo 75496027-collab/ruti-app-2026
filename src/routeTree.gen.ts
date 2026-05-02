@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsuarioSolicitarRouteImport } from './routes/usuario.solicitar'
 import { Route as RegistroUsuarioRouteImport } from './routes/registro.usuario'
 import { Route as RegistroConductorRouteImport } from './routes/registro.conductor'
+import { Route as ConductorRutaRouteImport } from './routes/conductor.ruta'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,15 +35,22 @@ const RegistroConductorRoute = RegistroConductorRouteImport.update({
   path: '/registro/conductor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConductorRutaRoute = ConductorRutaRouteImport.update({
+  id: '/conductor/ruta',
+  path: '/conductor/ruta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/conductor/ruta': typeof ConductorRutaRoute
   '/registro/conductor': typeof RegistroConductorRoute
   '/registro/usuario': typeof RegistroUsuarioRoute
   '/usuario/solicitar': typeof UsuarioSolicitarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/conductor/ruta': typeof ConductorRutaRoute
   '/registro/conductor': typeof RegistroConductorRoute
   '/registro/usuario': typeof RegistroUsuarioRoute
   '/usuario/solicitar': typeof UsuarioSolicitarRoute
@@ -50,6 +58,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/conductor/ruta': typeof ConductorRutaRoute
   '/registro/conductor': typeof RegistroConductorRoute
   '/registro/usuario': typeof RegistroUsuarioRoute
   '/usuario/solicitar': typeof UsuarioSolicitarRoute
@@ -58,14 +67,21 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/conductor/ruta'
     | '/registro/conductor'
     | '/registro/usuario'
     | '/usuario/solicitar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/registro/conductor' | '/registro/usuario' | '/usuario/solicitar'
+  to:
+    | '/'
+    | '/conductor/ruta'
+    | '/registro/conductor'
+    | '/registro/usuario'
+    | '/usuario/solicitar'
   id:
     | '__root__'
     | '/'
+    | '/conductor/ruta'
     | '/registro/conductor'
     | '/registro/usuario'
     | '/usuario/solicitar'
@@ -73,6 +89,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConductorRutaRoute: typeof ConductorRutaRoute
   RegistroConductorRoute: typeof RegistroConductorRoute
   RegistroUsuarioRoute: typeof RegistroUsuarioRoute
   UsuarioSolicitarRoute: typeof UsuarioSolicitarRoute
@@ -108,11 +125,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistroConductorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conductor/ruta': {
+      id: '/conductor/ruta'
+      path: '/conductor/ruta'
+      fullPath: '/conductor/ruta'
+      preLoaderRoute: typeof ConductorRutaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConductorRutaRoute: ConductorRutaRoute,
   RegistroConductorRoute: RegistroConductorRoute,
   RegistroUsuarioRoute: RegistroUsuarioRoute,
   UsuarioSolicitarRoute: UsuarioSolicitarRoute,
