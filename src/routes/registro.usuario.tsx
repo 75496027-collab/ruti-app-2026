@@ -28,7 +28,7 @@ function RegistroUsuario() {
           <>
             <button
               type="button"
-              className="w-full flex items-center justify-center gap-3 bg-white border border-border rounded-xl py-3 font-medium hover:bg-secondary transition-[var(--transition-smooth)] shadow-sm"
+              className="w-full flex items-center justify-center gap-3 bg-card border border-border rounded-xl py-3 font-medium hover:bg-secondary transition-[var(--transition-smooth)] shadow-sm"
               onClick={() => setDone(true)}
             >
               <Mail className="w-5 h-5 text-primary" />
@@ -72,7 +72,7 @@ function Field({ icon: Icon, label, value, onChange, placeholder }: { icon: Reac
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full pl-11 pr-3 py-3 bg-white border border-input rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-[var(--transition-smooth)]"
+          className="w-full pl-11 pr-3 py-3 bg-card border border-input rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-[var(--transition-smooth)]"
         />
       </div>
     </label>

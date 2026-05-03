@@ -34,7 +34,7 @@ function UsuarioSolicitar() {
     <div className="min-h-screen bg-background">
       <AppHeader title="Solicitar transporte" />
       <main className="max-w-md mx-auto px-4 py-5">
-        <div className="bg-white rounded-2xl p-4 shadow-[var(--shadow-soft)] space-y-3 mb-5">
+        <div className="bg-card rounded-2xl p-4 shadow-[var(--shadow-soft)] space-y-3 mb-5">
           <VoiceField icon={Navigation} placeholder="Punto de inicio" value={origen} onMic={() => dictar("origen")} listening={listening === "origen"} onChange={setOrigen} dotColor="bg-success" />
           <div className="border-t border-border" />
           <VoiceField icon={MapPin} placeholder="¿A dónde vas?" value={destino} onMic={() => dictar("destino")} listening={listening === "destino"} onChange={setDestino} dotColor="bg-primary" />
@@ -92,7 +92,7 @@ function BusCard({ bus, onSelect }: { bus: Bus; onSelect: () => void }) {
   return (
     <button
       onClick={onSelect}
-      className="w-full bg-white rounded-2xl p-4 shadow-sm border border-border hover:shadow-[var(--shadow-soft)] hover:border-primary/30 transition-[var(--transition-smooth)] text-left"
+      className="w-full bg-card rounded-2xl p-4 shadow-sm border border-border hover:shadow-[var(--shadow-soft)] hover:border-primary/30 transition-[var(--transition-smooth)] text-left"
     >
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
@@ -119,7 +119,7 @@ function BusCard({ bus, onSelect }: { bus: Bus; onSelect: () => void }) {
 
 function ConductorPreview({ bus, onCancel, onSolicitar }: { bus: Bus; onCancel: () => void; onSolicitar: () => void }) {
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-[var(--shadow-elevated)] mt-3">
+    <div className="bg-card rounded-2xl p-5 shadow-[var(--shadow-elevated)] mt-3">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-14 h-14 rounded-full flex items-center justify-center text-primary-foreground font-bold text-lg" style={{ background: "var(--gradient-primary)" }}>
           {bus.conductor.split(" ").map((n) => n[0]).slice(0, 2).join("")}
@@ -181,7 +181,7 @@ function ConductorView({ bus, onBack }: { bus: Bus; onBack: () => void }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 shadow-[var(--shadow-soft)] mb-4">
+        <div className="bg-card rounded-2xl p-5 shadow-[var(--shadow-soft)] mb-4">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-16 h-16 rounded-full flex items-center justify-center text-primary-foreground font-bold text-xl" style={{ background: "var(--gradient-primary)" }}>
               {bus.conductor.split(" ").map((n) => n[0]).slice(0, 2).join("")}

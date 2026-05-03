@@ -30,7 +30,7 @@ function ConductorRuta() {
         </div>
 
         {/* Inputs ruta */}
-        <div className="bg-white rounded-2xl p-4 shadow-[var(--shadow-soft)] space-y-3 mb-5">
+        <div className="bg-card rounded-2xl p-4 shadow-[var(--shadow-soft)] space-y-3 mb-5">
           <RutaField icon={Navigation} placeholder="Punto de inicio" value={origen} onChange={setOrigen} dot="bg-success" />
           <div className="border-t border-border" />
           <RutaField icon={MapPin} placeholder="Punto final" value={destino} onChange={setDestino} dot="bg-primary" />
@@ -61,7 +61,7 @@ function ConductorRuta() {
                 <button
                   key={p.id}
                   onClick={() => setPasajeroSel(p.id)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-[var(--transition-smooth)] text-left ${pasajeroSel === p.id ? "bg-primary/5 border-primary/40" : "bg-white border-border hover:border-primary/20"}`}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-[var(--transition-smooth)] text-left ${pasajeroSel === p.id ? "bg-primary/5 border-primary/40" : "bg-card border-border hover:border-primary/20"}`}
                 >
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0" style={{ background: "var(--gradient-primary)" }}>
                     {p.cantidad}
@@ -126,7 +126,7 @@ function Mapa({ pasajeroSel, onSelect }: { pasajeroSel: string | null; onSelect:
           className="absolute -translate-x-1/2 -translate-y-1/2 group"
           style={{ left: `${p.x}%`, top: `${p.y}%` }}
         >
-          <div className={`relative w-9 h-9 rounded-full bg-white border-2 flex items-center justify-center shadow-[var(--shadow-soft)] transition-[var(--transition-smooth)] ${pasajeroSel === p.id ? "border-primary scale-125" : "border-border group-hover:scale-110"}`}>
+          <div className={`relative w-9 h-9 rounded-full bg-card border-2 flex items-center justify-center shadow-[var(--shadow-soft)] transition-[var(--transition-smooth)] ${pasajeroSel === p.id ? "border-primary scale-125" : "border-border group-hover:scale-110"}`}>
             <Users className="w-4 h-4 text-primary" />
             <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
               {p.cantidad}
