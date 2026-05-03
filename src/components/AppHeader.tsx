@@ -20,7 +20,7 @@ export function AppHeader({ title, back = true }: { title: string; back?: boolea
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-border">
+    <header className="sticky top-0 z-20 bg-card/80 backdrop-blur-md border-b border-border">
       <div className="max-w-md mx-auto px-4 h-14 flex items-center gap-3">
         {back ? (
           <button

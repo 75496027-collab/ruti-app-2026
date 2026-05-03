@@ -11,14 +11,14 @@ function Index() {
     <div className="min-h-screen relative overflow-hidden" style={{ background: "var(--gradient-hero)" }}>
       {/* Decoración */}
       <div className="absolute inset-0 opacity-20 pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 rounded-full bg-white blur-3xl" />
+        <div className="absolute top-20 left-10 w-72 h-72 rounded-full bg-card blur-3xl" />
         <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full bg-primary-foreground blur-3xl" />
       </div>
 
       <div className="relative z-10 max-w-md mx-auto px-6 py-12 min-h-screen flex flex-col">
         {/* Logo */}
         <header className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/15 backdrop-blur-sm mb-4 shadow-[var(--shadow-glow)]">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-card/15 backdrop-blur-sm mb-4 shadow-[var(--shadow-glow)]">
             <Bus className="w-10 h-10 text-primary-foreground" strokeWidth={2.5} />
           </div>
           <h1 className="text-5xl font-bold text-primary-foreground tracking-tight">Ruti</h1>
@@ -31,7 +31,7 @@ function Index() {
 
           <Link
             to="/registro/usuario"
-            className="group bg-white rounded-2xl p-6 shadow-[var(--shadow-elevated)] hover:scale-[1.02] transition-[var(--transition-smooth)] flex items-center gap-4"
+            className="group bg-card rounded-2xl p-6 shadow-[var(--shadow-elevated)] hover:scale-[1.02] transition-[var(--transition-smooth)] flex items-center gap-4"
           >
             <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: "var(--gradient-primary)" }}>
               <User className="w-7 h-7 text-primary-foreground" />
@@ -45,7 +45,7 @@ function Index() {
 
           <Link
             to="/registro/conductor"
-            className="group bg-white rounded-2xl p-6 shadow-[var(--shadow-elevated)] hover:scale-[1.02] transition-[var(--transition-smooth)] flex items-center gap-4"
+            className="group bg-card rounded-2xl p-6 shadow-[var(--shadow-elevated)] hover:scale-[1.02] transition-[var(--transition-smooth)] flex items-center gap-4"
           >
             <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-secondary">
               <Bus className="w-7 h-7 text-primary" />
