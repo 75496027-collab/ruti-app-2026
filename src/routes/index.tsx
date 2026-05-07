@@ -23,7 +23,7 @@ function Index() {
     }
     // Si ya tiene rol, redirigir al flujo correspondiente
     if (profile?.role === "user") navigate({ to: "/usuario/solicitar" });
-    if (profile?.role === "driver") navigate({ to: "/conductor/registro" });
+    if (profile?.role === "driver") navigate({ to: "/registro/conductor" });
   }, [user, profile, loading, navigate]);
 
   const pickRole = async (role: "user" | "driver") => {
@@ -43,7 +43,7 @@ function Index() {
       if (rErr && !rErr.message.includes("duplicate")) throw rErr;
 
       await refreshProfile();
-      navigate({ to: role === "user" ? "/usuario/solicitar" : "/conductor/registro" });
+      navigate({ to: role === "user" ? "/usuario/solicitar" : "/registro/conductor" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo guardar el rol");
     } finally {
