@@ -14,6 +14,7 @@ import { Route as UsuarioSolicitarRouteImport } from './routes/usuario.solicitar
 import { Route as RegistroUsuarioRouteImport } from './routes/registro.usuario'
 import { Route as RegistroConductorRouteImport } from './routes/registro.conductor'
 import { Route as ConductorRutaRouteImport } from './routes/conductor.ruta'
+import { Route as AuthLoginRouteImport } from './routes/auth.login'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,9 +41,15 @@ const ConductorRutaRoute = ConductorRutaRouteImport.update({
   path: '/conductor/ruta',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/auth/login',
+  path: '/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth/login': typeof AuthLoginRoute
   '/conductor/ruta': typeof ConductorRutaRoute
   '/registro/conductor': typeof RegistroConductorRoute
   '/registro/usuario': typeof RegistroUsuarioRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth/login': typeof AuthLoginRoute
   '/conductor/ruta': typeof ConductorRutaRoute
   '/registro/conductor': typeof RegistroConductorRoute
   '/registro/usuario': typeof RegistroUsuarioRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth/login': typeof AuthLoginRoute
   '/conductor/ruta': typeof ConductorRutaRoute
   '/registro/conductor': typeof RegistroConductorRoute
   '/registro/usuario': typeof RegistroUsuarioRoute
@@ -67,6 +76,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth/login'
     | '/conductor/ruta'
     | '/registro/conductor'
     | '/registro/usuario'
@@ -74,6 +84,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth/login'
     | '/conductor/ruta'
     | '/registro/conductor'
     | '/registro/usuario'
@@ -81,6 +92,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/auth/login'
     | '/conductor/ruta'
     | '/registro/conductor'
     | '/registro/usuario'
@@ -89,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthLoginRoute: typeof AuthLoginRoute
   ConductorRutaRoute: typeof ConductorRutaRoute
   RegistroConductorRoute: typeof RegistroConductorRoute
   RegistroUsuarioRoute: typeof RegistroUsuarioRoute
@@ -132,11 +145,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConductorRutaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/auth/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthLoginRoute: AuthLoginRoute,
   ConductorRutaRoute: ConductorRutaRoute,
   RegistroConductorRoute: RegistroConductorRoute,
   RegistroUsuarioRoute: RegistroUsuarioRoute,
@@ -145,12 +166,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
