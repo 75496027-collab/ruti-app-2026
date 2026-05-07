@@ -14,16 +14,161 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      driver_docs: {
+        Row: {
+          atu_auth: string | null
+          created_at: string
+          is_verified: boolean
+          license_expiry: string | null
+          license_type: string | null
+          plate_number: string | null
+          revision_expiry: string | null
+          soat_expiry: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          atu_auth?: string | null
+          created_at?: string
+          is_verified?: boolean
+          license_expiry?: string | null
+          license_type?: string | null
+          plate_number?: string | null
+          revision_expiry?: string | null
+          soat_expiry?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          atu_auth?: string | null
+          created_at?: string
+          is_verified?: boolean
+          license_expiry?: string | null
+          license_type?: string | null
+          plate_number?: string | null
+          revision_expiry?: string | null
+          soat_expiry?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          dni: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dni?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dni?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rides: {
+        Row: {
+          created_at: string
+          driver_id: string | null
+          end_address: string | null
+          end_lat: number
+          end_lng: number
+          id: string
+          price: number
+          start_address: string | null
+          start_lat: number
+          start_lng: number
+          status: Database["public"]["Enums"]["ride_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id?: string | null
+          end_address?: string | null
+          end_lat: number
+          end_lng: number
+          id?: string
+          price?: number
+          start_address?: string | null
+          start_lat: number
+          start_lng: number
+          status?: Database["public"]["Enums"]["ride_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string | null
+          end_address?: string | null
+          end_lat?: number
+          end_lng?: number
+          id?: string
+          price?: number
+          start_address?: string | null
+          start_lat?: number
+          start_lng?: number
+          status?: Database["public"]["Enums"]["ride_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "driver" | "user"
+      ride_status: "pending" | "accepted" | "completed" | "cancelled"
+      user_role: "user" | "driver"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +295,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "driver", "user"],
+      ride_status: ["pending", "accepted", "completed", "cancelled"],
+      user_role: ["user", "driver"],
+    },
   },
 } as const
