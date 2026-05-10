@@ -262,7 +262,6 @@ function VozStep({ onContinue }: { onContinue: () => void }) {
   );
 }
 
-function VozStep({ listening, transcript, onMic, onSkip }: { listening: boolean; transcript: string[]; onMic: () => void; onSkip: () => void }) {
 function DocumentosStep({ onDone }: { onDone: () => void }) {
   const { user } = useAuth();
   const [docs, setDocs] = useState<DocumentoConductor[]>(documentosBase);
