@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
-import { Mic, MicOff, Upload, CheckCircle2, AlertTriangle, FileText, Bot } from "lucide-react";
+import { Mic, MicOff, Upload, CheckCircle2, AlertTriangle, FileText, Bot, HelpCircle, Loader2, Send, X } from "lucide-react";
 import { documentosBase, type DocumentoConductor } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/features/auth/AuthContext";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/registro/conductor")({
   component: RegistroConductor,
@@ -10,34 +13,13 @@ export const Route = createFileRoute("/registro/conductor")({
 
 function RegistroConductor() {
   const [step, setStep] = useState<"voz" | "documentos" | "listo">("voz");
-  const [listening, setListening] = useState(false);
-  const [transcript, setTranscript] = useState<string[]>([]);
-
-  const fakeAgentLines = [
-    "Hola, soy tu asistente Ruti. ¿Cuál es tu nombre completo?",
-    "Perfecto. Ahora dime tu número de DNI.",
-    "Excelente. ¿Cuál es la placa de tu vehículo?",
-    "Listo. Vamos a subir tus documentos.",
-  ];
-
-  const handleMic = () => {
-    setListening(true);
-    setTimeout(() => {
-      setTranscript((t) => [...t, fakeAgentLines[t.length] || ""]);
-      setListening(false);
-      if (transcript.length + 1 >= fakeAgentLines.length) {
-        setTimeout(() => setStep("documentos"), 800);
-      }
-    }, 1500);
-  };
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader title="Registro de Conductor" />
       <main className="max-w-md mx-auto px-4 py-6">
-        {step === "voz" && (
-          <VozStep listening={listening} transcript={transcript} onMic={handleMic} onSkip={() => setStep("documentos")} />
-        )}
+        <Stepper step={step} />
+        {step === "voz" && <VozStep onContinue={() => setStep("documentos")} />}
         {step === "documentos" && <DocumentosStep onDone={() => setStep("listo")} />}
         {step === "listo" && <ListoStep />}
       </main>
@@ -45,50 +27,245 @@ function RegistroConductor() {
   );
 }
 
-function VozStep({ listening, transcript, onMic, onSkip }: { listening: boolean; transcript: string[]; onMic: () => void; onSkip: () => void }) {
+function Stepper({ step }: { step: "voz" | "documentos" | "listo" }) {
+  const steps = [
+    { id: "voz", label: "Datos por voz" },
+    { id: "documentos", label: "Documentos" },
+    { id: "listo", label: "Listo" },
+  ] as const;
+  const idx = steps.findIndex((s) => s.id === step);
+  return (
+    <div className="flex items-center gap-2 mb-6">
+      {steps.map((s, i) => (
+        <div key={s.id} className="flex-1 flex items-center gap-2">
+          <div
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+              i <= idx ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+            }`}
+          >
+            {i < idx ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
+          </div>
+          <span className={`text-xs ${i <= idx ? "text-foreground font-medium" : "text-muted-foreground"}`}>{s.label}</span>
+          {i < steps.length - 1 && <div className={`flex-1 h-px ${i < idx ? "bg-primary" : "bg-border"}`} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// =============== VOZ (Web Speech API real) ===============
+
+type VozMsg = { from: "agent" | "user"; text: string };
+
+const VOZ_PROMPTS = [
+  { key: "full_name", q: "Hola, soy tu asistente Ruti. ¿Cuál es tu nombre completo?" },
+  { key: "dni", q: "Perfecto. Ahora dime tu número de DNI, dígito por dígito." },
+  { key: "phone", q: "¿Cuál es tu número de celular?" },
+  { key: "plate", q: "Excelente. Por último, dime la placa de tu vehículo." },
+] as const;
+
+function VozStep({ onContinue }: { onContinue: () => void }) {
+  const { user, refreshProfile } = useAuth();
+  const [msgs, setMsgs] = useState<VozMsg[]>([{ from: "agent", text: VOZ_PROMPTS[0].q }]);
+  const [stepIdx, setStepIdx] = useState(0);
+  const [listening, setListening] = useState(false);
+  const [interim, setInterim] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const supportedRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    supportedRef.current = !!SR;
+  }, []);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [msgs, interim]);
+
+  const handleAnswer = (text: string) => {
+    const cleaned = text.trim();
+    if (!cleaned) return;
+    const current = VOZ_PROMPTS[stepIdx];
+    let value = cleaned;
+    if (current.key === "dni") value = cleaned.replace(/\D/g, "").slice(0, 8);
+    if (current.key === "phone") value = cleaned.replace(/\D/g, "").slice(0, 9);
+    if (current.key === "plate") value = cleaned.toUpperCase().replace(/\s+/g, "").replace(/[^\w-]/g, "");
+    setAnswers((a) => ({ ...a, [current.key]: value }));
+    setMsgs((m) => [...m, { from: "user", text: value }]);
+
+    const next = stepIdx + 1;
+    if (next < VOZ_PROMPTS.length) {
+      setStepIdx(next);
+      setTimeout(() => setMsgs((m) => [...m, { from: "agent", text: VOZ_PROMPTS[next].q }]), 400);
+    } else {
+      setTimeout(() => setMsgs((m) => [...m, { from: "agent", text: "¡Excelente! Ahora vamos a subir tus documentos." }]), 400);
+    }
+  };
+
+  const startListening = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.");
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "es-PE";
+    rec.interimResults = true;
+    rec.continuous = false;
+
+    rec.onresult = (e: any) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t;
+        else interimText += t;
+      }
+      setInterim(interimText);
+      if (finalText) {
+        setInterim("");
+        handleAnswer(finalText);
+      }
+    };
+    rec.onerror = (e: any) => {
+      console.error("speech error", e);
+      toast.error("No se pudo escuchar. Revisa el micrófono.");
+      setListening(false);
+    };
+    rec.onend = () => setListening(false);
+
+    recognitionRef.current = rec;
+    setListening(true);
+    setInterim("");
+    rec.start();
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setListening(false);
+  };
+
+  const allAnswered = stepIdx >= VOZ_PROMPTS.length;
+
+  const saveAndContinue = async () => {
+    if (!user) return onContinue();
+    setSaving(true);
+    try {
+      const { error: pErr } = await supabase
+        .from("profiles")
+        .update({
+          full_name: answers.full_name || null,
+          dni: answers.dni || null,
+          phone: answers.phone || null,
+        })
+        .eq("id", user.id);
+      if (pErr) throw pErr;
+
+      if (answers.plate) {
+        const { error: dErr } = await supabase.from("driver_docs").upsert(
+          { user_id: user.id, plate_number: answers.plate },
+          { onConflict: "user_id" }
+        );
+        if (dErr && !dErr.message.includes("no unique")) {
+          // si no hay constraint, fallback a insert sencillo
+          await supabase.from("driver_docs").insert({ user_id: user.id, plate_number: answers.plate });
+        }
+      }
+      await refreshProfile();
+      onContinue();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Edición manual fallback
+  const [manualText, setManualText] = useState("");
+  const submitManual = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualText.trim() || allAnswered) return;
+    handleAnswer(manualText);
+    setManualText("");
+  };
+
   return (
     <div>
-      <div className="bg-card rounded-2xl p-5 shadow-[var(--shadow-soft)] mb-4 flex items-start gap-3">
+      <div className="bg-card rounded-2xl p-4 shadow-[var(--shadow-soft)] mb-3 flex items-start gap-3">
         <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--gradient-primary)" }}>
           <Bot className="w-5 h-5 text-primary-foreground" />
         </div>
         <div>
           <div className="text-xs text-muted-foreground font-medium mb-1">Agente IA Ruti</div>
-          <p className="text-foreground text-sm">Te guiaré paso a paso. Toca el micrófono y responde con tu voz.</p>
+          <p className="text-foreground text-sm">Toca el micrófono y responde. También puedes escribir si lo prefieres.</p>
         </div>
       </div>
 
-      <div className="bg-secondary/60 rounded-2xl p-4 min-h-[180px] mb-6 space-y-2">
-        {transcript.length === 0 && (
-          <p className="text-muted-foreground text-sm text-center py-12">La conversación aparecerá aquí…</p>
-        )}
-        {transcript.map((t, i) => (
-          <div key={i} className="bg-card rounded-xl px-3 py-2 text-sm text-foreground shadow-sm animate-in fade-in slide-in-from-bottom-2">
-            {t}
+      <div ref={scrollRef} className="bg-secondary/60 rounded-2xl p-4 h-[280px] overflow-y-auto mb-4 space-y-2">
+        {msgs.map((m, i) => (
+          <div
+            key={i}
+            className={`max-w-[85%] rounded-xl px-3 py-2 text-sm shadow-sm animate-in fade-in slide-in-from-bottom-2 ${
+              m.from === "agent" ? "bg-card text-foreground" : "bg-primary text-primary-foreground ml-auto"
+            }`}
+          >
+            {m.text}
           </div>
         ))}
+        {interim && (
+          <div className="max-w-[85%] rounded-xl px-3 py-2 text-sm bg-primary/40 text-primary-foreground ml-auto italic">
+            {interim}…
+          </div>
+        )}
       </div>
 
-      <button
-        onClick={onMic}
-        disabled={listening}
-        className={`relative w-24 h-24 mx-auto rounded-full flex items-center justify-center text-primary-foreground shadow-[var(--shadow-elevated)] transition-[var(--transition-smooth)] ${listening ? "scale-110" : "hover:scale-105"}`}
-        style={{ background: "var(--gradient-primary)" }}
-      >
-        {listening && <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-30" />}
-        {listening ? <MicOff className="w-10 h-10" /> : <Mic className="w-10 h-10" />}
-      </button>
-      <p className="text-center text-sm text-muted-foreground mt-3">{listening ? "Escuchando…" : "Toca para hablar"}</p>
+      {!allAnswered ? (
+        <>
+          <button
+            onClick={listening ? stopListening : startListening}
+            className={`relative w-20 h-20 mx-auto rounded-full flex items-center justify-center text-primary-foreground shadow-[var(--shadow-elevated)] transition-[var(--transition-smooth)] ${listening ? "scale-110" : "hover:scale-105"}`}
+            style={{ background: "var(--gradient-primary)" }}
+          >
+            {listening && <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-30" />}
+            {listening ? <MicOff className="w-8 h-8" /> : <Mic className="w-8 h-8" />}
+          </button>
+          <p className="text-center text-xs text-muted-foreground mt-2">
+            {listening ? "Escuchando…" : "Toca para hablar"}
+          </p>
 
-      <button onClick={onSkip} className="w-full mt-8 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-[var(--transition-smooth)]">
-        Saltar y subir documentos
-      </button>
+          <form onSubmit={submitManual} className="mt-4 flex gap-2">
+            <input
+              value={manualText}
+              onChange={(e) => setManualText(e.target.value)}
+              placeholder="O escribe tu respuesta…"
+              className="flex-1 px-3 py-2 bg-card border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <button type="submit" className="px-4 rounded-xl text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </>
+      ) : (
+        <button
+          onClick={saveAndContinue}
+          disabled={saving}
+          className="w-full mt-2 py-3.5 rounded-xl font-semibold text-primary-foreground shadow-[var(--shadow-soft)] disabled:opacity-60"
+          style={{ background: "var(--gradient-primary)" }}
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Continuar a documentos"}
+        </button>
+      )}
     </div>
   );
 }
 
 function DocumentosStep({ onDone }: { onDone: () => void }) {
+  const { user } = useAuth();
   const [docs, setDocs] = useState<DocumentoConductor[]>(documentosBase);
+  const [saving, setSaving] = useState(false);
 
   const evaluarEstado = (vencimiento: string): DocumentoConductor["estado"] => {
     if (!vencimiento) return "pendiente";
@@ -113,10 +290,38 @@ function DocumentosStep({ onDone }: { onDone: () => void }) {
 
   const todosValidados = docs.every((d) => d.estado === "validado" || d.estado === "porVencer");
 
+  const finalizar = async () => {
+    if (!user) return onDone();
+    setSaving(true);
+    try {
+      const get = (id: string) => docs.find((d) => d.id === id)?.vencimiento || null;
+      const payload = {
+        user_id: user.id,
+        license_expiry: get("licencia"),
+        soat_expiry: get("soat"),
+        revision_expiry: get("revision"),
+        atu_auth: get("autorizacion"),
+      };
+      // intentar update primero
+      const { error: uErr } = await supabase
+        .from("driver_docs")
+        .update(payload)
+        .eq("user_id", user.id);
+      if (uErr) {
+        await supabase.from("driver_docs").insert(payload);
+      }
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <h2 className="text-xl font-bold text-foreground mb-1">Documentos requeridos</h2>
-      <p className="text-sm text-muted-foreground mb-5">Sube cada documento e indica su fecha de vencimiento.</p>
+      <p className="text-sm text-muted-foreground mb-3">Sube cada documento e indica su fecha de vencimiento. Pulsa <HelpCircle className="inline w-3.5 h-3.5" /> si tienes dudas.</p>
 
       <div className="space-y-3">
         {docs.map((d) => (
@@ -125,18 +330,19 @@ function DocumentosStep({ onDone }: { onDone: () => void }) {
       </div>
 
       <button
-        onClick={onDone}
-        disabled={!todosValidados}
+        onClick={finalizar}
+        disabled={!todosValidados || saving}
         className="w-full mt-6 py-3.5 rounded-xl font-semibold text-primary-foreground disabled:opacity-50 shadow-[var(--shadow-soft)]"
         style={{ background: "var(--gradient-primary)" }}
       >
-        Finalizar registro
+        {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Finalizar registro"}
       </button>
     </div>
   );
 }
 
 function DocCard({ doc, onUpdate }: { doc: DocumentoConductor; onUpdate: (p: Partial<DocumentoConductor>) => void }) {
+  const [helpOpen, setHelpOpen] = useState(false);
   const estadoUI = {
     pendiente: { color: "bg-muted text-muted-foreground", icon: FileText, label: "Pendiente" },
     validado: { color: "bg-success/15 text-success", icon: CheckCircle2, label: "Validado" },
@@ -151,6 +357,14 @@ function DocCard({ doc, onUpdate }: { doc: DocumentoConductor; onUpdate: (p: Par
         <div className="flex-1">
           <div className="font-medium text-foreground text-sm">{doc.nombre}</div>
         </div>
+        <button
+          type="button"
+          onClick={() => setHelpOpen(true)}
+          className="text-primary hover:bg-secondary p-1 rounded-md"
+          title="Pedir ayuda al asistente IA"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
         <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${estadoUI.color}`}>
           <Icon className="w-3 h-3" />
           {estadoUI.label}
@@ -180,6 +394,97 @@ function DocCard({ doc, onUpdate }: { doc: DocumentoConductor; onUpdate: (p: Par
       {doc.archivo && (
         <div className="text-xs text-muted-foreground mt-2 truncate">📎 {doc.archivo}</div>
       )}
+      {helpOpen && <AssistantModal docName={doc.nombre} onClose={() => setHelpOpen(false)} />}
+    </div>
+  );
+}
+
+function AssistantModal({ docName, onClose }: { docName: string; onClose: () => void }) {
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const ask = async (q?: string) => {
+    const finalQ = (q ?? question).trim();
+    if (!finalQ) return;
+    setLoading(true);
+    setAnswer(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ruti-assistant", {
+        body: { question: finalQ, context: docName },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAnswer(data?.answer ?? "Sin respuesta.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error del asistente");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sugerencias = [
+    `¿Cómo subo correctamente mi ${docName}?`,
+    `¿Dónde tramito ${docName} si no lo tengo?`,
+    "¿Qué formato de archivo se acepta?",
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card rounded-2xl w-full max-w-md shadow-[var(--shadow-elevated)] animate-in slide-in-from-bottom-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-primary)" }}>
+              <Bot className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm text-foreground">Asistente Ruti</div>
+              <div className="text-xs text-muted-foreground truncate max-w-[200px]">Sobre: {docName}</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-md hover:bg-secondary text-muted-foreground"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="p-4 space-y-3 max-h-[50vh] overflow-y-auto">
+          {!answer && !loading && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Preguntas frecuentes:</p>
+              {sugerencias.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => ask(s)}
+                  className="w-full text-left text-sm p-3 rounded-xl bg-secondary hover:bg-accent transition-[var(--transition-smooth)]"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
+              <Loader2 className="w-4 h-4 animate-spin" /> Consultando…
+            </div>
+          )}
+          {answer && (
+            <div className="bg-secondary/60 rounded-xl p-3 text-sm text-foreground whitespace-pre-wrap">{answer}</div>
+          )}
+        </div>
+
+        <form
+          onSubmit={(e) => { e.preventDefault(); ask(); }}
+          className="p-3 border-t border-border flex gap-2"
+        >
+          <input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Escribe tu pregunta…"
+            className="flex-1 px-3 py-2 bg-secondary border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button type="submit" disabled={loading || !question.trim()} className="px-4 rounded-xl text-primary-foreground disabled:opacity-50" style={{ background: "var(--gradient-primary)" }}>
+            <Send className="w-4 h-4" />
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

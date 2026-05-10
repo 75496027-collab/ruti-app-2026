@@ -1,1 +1,4 @@
 project_id = "cszwveqoxvspukgnlffw"
+
+[functions.ruti-assistant]
+verify_jwt = false
