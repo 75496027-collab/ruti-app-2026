@@ -84,11 +84,28 @@ const VOZ_PROMPTS = [
 
 function VozStep({ onContinue }: { onContinue: () => void }) {
   const { user, refreshProfile } = useAuth();
-  const [msgs, setMsgs] = useState<VozMsg[]>([{ from: "agent", text: VOZ_PROMPTS[0].q }]);
-  const [stepIdx, setStepIdx] = useState(0);
+  const [msgs, setMsgs] = useState<VozMsg[]>(() => {
+    if (typeof window === "undefined") return [{ from: "agent", text: VOZ_PROMPTS[0].q }];
+    try {
+      const raw = localStorage.getItem("ruti.reg.msgs");
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [{ from: "agent", text: VOZ_PROMPTS[0].q }];
+  });
+  const [stepIdx, setStepIdx] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    return Number(localStorage.getItem("ruti.reg.stepIdx") || "0");
+  });
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(localStorage.getItem("ruti.reg.answers") || "{}");
+    } catch {
+      return {};
+    }
+  });
   const [saving, setSaving] = useState(false);
   const recognitionRef = useRef<any>(null);
   const supportedRef = useRef(false);
@@ -98,6 +115,16 @@ function VozStep({ onContinue }: { onContinue: () => void }) {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     supportedRef.current = !!SR;
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("ruti.reg.msgs", JSON.stringify(msgs));
+  }, [msgs]);
+  useEffect(() => {
+    localStorage.setItem("ruti.reg.stepIdx", String(stepIdx));
+  }, [stepIdx]);
+  useEffect(() => {
+    localStorage.setItem("ruti.reg.answers", JSON.stringify(answers));
+  }, [answers]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -282,8 +309,19 @@ function VozStep({ onContinue }: { onContinue: () => void }) {
 
 function DocumentosStep({ onDone }: { onDone: () => void }) {
   const { user } = useAuth();
-  const [docs, setDocs] = useState<DocumentoConductor[]>(documentosBase);
+  const [docs, setDocs] = useState<DocumentoConductor[]>(() => {
+    if (typeof window === "undefined") return documentosBase;
+    try {
+      const raw = localStorage.getItem("ruti.reg.docs");
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return documentosBase;
+  });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("ruti.reg.docs", JSON.stringify(docs));
+  }, [docs]);
 
   const evaluarEstado = (vencimiento: string): DocumentoConductor["estado"] => {
     if (!vencimiento) return "pendiente";
