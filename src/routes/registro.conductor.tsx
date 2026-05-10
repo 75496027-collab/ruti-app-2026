@@ -263,47 +263,6 @@ function VozStep({ onContinue }: { onContinue: () => void }) {
 }
 
 function VozStep({ listening, transcript, onMic, onSkip }: { listening: boolean; transcript: string[]; onMic: () => void; onSkip: () => void }) {
-  return (
-    <div>
-      <div className="bg-card rounded-2xl p-5 shadow-[var(--shadow-soft)] mb-4 flex items-start gap-3">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--gradient-primary)" }}>
-          <Bot className="w-5 h-5 text-primary-foreground" />
-        </div>
-        <div>
-          <div className="text-xs text-muted-foreground font-medium mb-1">Agente IA Ruti</div>
-          <p className="text-foreground text-sm">Te guiaré paso a paso. Toca el micrófono y responde con tu voz.</p>
-        </div>
-      </div>
-
-      <div className="bg-secondary/60 rounded-2xl p-4 min-h-[180px] mb-6 space-y-2">
-        {transcript.length === 0 && (
-          <p className="text-muted-foreground text-sm text-center py-12">La conversación aparecerá aquí…</p>
-        )}
-        {transcript.map((t, i) => (
-          <div key={i} className="bg-card rounded-xl px-3 py-2 text-sm text-foreground shadow-sm animate-in fade-in slide-in-from-bottom-2">
-            {t}
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={onMic}
-        disabled={listening}
-        className={`relative w-24 h-24 mx-auto rounded-full flex items-center justify-center text-primary-foreground shadow-[var(--shadow-elevated)] transition-[var(--transition-smooth)] ${listening ? "scale-110" : "hover:scale-105"}`}
-        style={{ background: "var(--gradient-primary)" }}
-      >
-        {listening && <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-30" />}
-        {listening ? <MicOff className="w-10 h-10" /> : <Mic className="w-10 h-10" />}
-      </button>
-      <p className="text-center text-sm text-muted-foreground mt-3">{listening ? "Escuchando…" : "Toca para hablar"}</p>
-
-      <button onClick={onSkip} className="w-full mt-8 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-[var(--transition-smooth)]">
-        Saltar y subir documentos
-      </button>
-    </div>
-  );
-}
-
 function DocumentosStep({ onDone }: { onDone: () => void }) {
   const { user } = useAuth();
   const [docs, setDocs] = useState<DocumentoConductor[]>(documentosBase);
