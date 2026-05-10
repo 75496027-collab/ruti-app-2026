@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
-import { Mic, MicOff, Upload, CheckCircle2, AlertTriangle, FileText, Bot, HelpCircle, Loader2, Send, X } from "lucide-react";
+import { Mic, MicOff, Upload, CheckCircle2, AlertTriangle, FileText, Bot, HelpCircle, Loader2, Send, X, LogIn } from "lucide-react";
 import { documentosBase, type DocumentoConductor } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -12,16 +12,34 @@ export const Route = createFileRoute("/registro/conductor")({
 });
 
 function RegistroConductor() {
-  const [step, setStep] = useState<"voz" | "documentos" | "listo">("voz");
+  const [step, setStep] = useState<"voz" | "documentos" | "listo">(() => {
+    if (typeof window === "undefined") return "voz";
+    return (localStorage.getItem("ruti.reg.step") as any) || "voz";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("ruti.reg.step", step);
+  }, [step]);
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader title="Registro de Conductor" />
+      <AppHeader title="Registro de Conductor" to="/" />
       <main className="max-w-md mx-auto px-4 py-6">
         <Stepper step={step} />
         {step === "voz" && <VozStep onContinue={() => setStep("documentos")} />}
         {step === "documentos" && <DocumentosStep onDone={() => setStep("listo")} />}
         {step === "listo" && <ListoStep />}
+        {step !== "listo" && (
+          <div className="mt-8 text-center">
+            <Link
+              to="/auth/login"
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <LogIn className="w-4 h-4" />
+              Volver al inicio de sesión
+            </Link>
+          </div>
+        )}
       </main>
     </div>
   );
