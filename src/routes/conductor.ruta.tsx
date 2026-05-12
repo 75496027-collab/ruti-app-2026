@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Mic, Navigation, MapPin, Users, AlertTriangle, Play, Bus as BusIcon } from "lucide-react";
 import { pasajerosMock } from "@/lib/mock-data";
+import { VoiceRecorder } from "@/components/VoiceRecorder";
 
 export const Route = createFileRoute("/conductor/ruta")({
   component: ConductorRuta,
@@ -27,6 +28,10 @@ function ConductorRuta() {
             <div className="font-semibold text-foreground">SOAT vence en 28 días</div>
             <div className="text-muted-foreground">Renueva pronto para mantener tu operación activa.</div>
           </div>
+        </div>
+
+        <div className="mb-5">
+          <VoiceRecorder />
         </div>
 
         {/* Inputs ruta */}
