@@ -1,21 +1,106 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
-import { Mic, Navigation, MapPin, Users, AlertTriangle, Play, Bus as BusIcon } from "lucide-react";
+import {
+  Navigation,
+  MapPin,
+  Users,
+  AlertTriangle,
+  Play,
+  Square,
+  Route as RouteIcon,
+  Clock,
+  TrainFront,
+  Loader2,
+} from "lucide-react";
 import { pasajerosMock } from "@/lib/mock-data";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
+import { PlacesVoiceInput, type PlaceResult } from "@/components/PlacesVoiceInput";
+import { RouteMap, nearestMetroStation } from "@/components/RouteMap";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/features/auth/AuthContext";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/conductor/ruta")({
   component: ConductorRuta,
 });
 
+// Coords aproximadas en Lima para los pasajeros mock — para mostrar sobre el mapa real.
+const PASAJERO_COORDS: Record<string, { lat: number; lng: number }> = {
+  p1: { lat: -12.0892, lng: -77.0392 }, // Av. Arequipa
+  p2: { lat: -12.0512, lng: -77.0345 }, // Jr. Lampa
+  p3: { lat: -12.0712, lng: -77.0512 }, // Av. Brasil
+  p4: { lat: -12.0907, lng: -77.0185 }, // Av. Javier Prado
+  p5: { lat: -12.0533, lng: -77.0345 }, // Plaza San Martín
+};
+
+type RouteInfo = { distanceText: string; durationText: string; distanceKm: number; durationMin: number } | null;
+
 function ConductorRuta() {
-  const [origen, setOrigen] = useState("");
-  const [destino, setDestino] = useState("");
+  const { user } = useAuth();
+  const [origenText, setOrigenText] = useState("");
+  const [destinoText, setDestinoText] = useState("");
+  const [origenPos, setOrigenPos] = useState<PlaceResult | null>(null);
+  const [destinoPos, setDestinoPos] = useState<PlaceResult | null>(null);
   const [enRuta, setEnRuta] = useState(false);
+  const [iniciando, setIniciando] = useState(false);
   const [pasajeroSel, setPasajeroSel] = useState<string | null>(null);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo>(null);
 
   const totalPasajeros = pasajerosMock.reduce((s, p) => s + p.cantidad, 0);
+
+  const metroHint = useMemo(() => {
+    if (!origenPos) return null;
+    const oNear = nearestMetroStation(origenPos);
+    if (oNear.distanceKm < 0.6) {
+      return `Tu inicio queda a ${(oNear.distanceKm * 1000).toFixed(0)} m de la estación ${oNear.station.nombre} del Metropolitano.`;
+    }
+    return null;
+  }, [origenPos]);
+
+  const extraMarkers = useMemo(() => {
+    if (!enRuta) return undefined;
+    return pasajerosMock.map((p) => ({
+      id: p.id,
+      position: PASAJERO_COORDS[p.id] ?? { lat: -12.05, lng: -77.04 },
+      label: String(p.cantidad),
+      color: pasajeroSel === p.id ? "#4f46e5" : "#0ea5e9",
+    }));
+  }, [enRuta, pasajeroSel]);
+
+  const iniciarRuta = async () => {
+    if (!origenPos || !destinoPos) return;
+    setIniciando(true);
+    try {
+      if (user) {
+        const { error } = await supabase.from("rides").insert({
+          user_id: user.id,
+          driver_id: user.id,
+          start_address: origenPos.address,
+          start_lat: origenPos.lat,
+          start_lng: origenPos.lng,
+          end_address: destinoPos.address,
+          end_lat: destinoPos.lat,
+          end_lng: destinoPos.lng,
+          price: 0,
+          status: "accepted",
+        });
+        if (error) throw error;
+      }
+      setEnRuta(true);
+      toast.success("Ruta iniciada. Los pasajeros pueden verte.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo iniciar la ruta.");
+    } finally {
+      setIniciando(false);
+    }
+  };
+
+  const detenerRuta = () => {
+    setEnRuta(false);
+    setPasajeroSel(null);
+    toast.message("Ruta detenida.");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,21 +119,75 @@ function ConductorRuta() {
           <VoiceRecorder />
         </div>
 
-        {/* Inputs ruta */}
-        <div className="bg-card rounded-2xl p-4 shadow-[var(--shadow-soft)] space-y-3 mb-5">
-          <RutaField icon={Navigation} placeholder="Punto de inicio" value={origen} onChange={setOrigen} dot="bg-success" />
+        {/* Inputs ruta con voz + Places */}
+        <div className="bg-card rounded-2xl p-4 shadow-[var(--shadow-soft)] space-y-3 mb-4">
+          <PlacesVoiceInput
+            icon={Navigation}
+            placeholder="Punto de inicio"
+            value={origenText}
+            onChange={setOrigenText}
+            onPlaceSelected={setOrigenPos}
+            dotColor="bg-success"
+          />
           <div className="border-t border-border" />
-          <RutaField icon={MapPin} placeholder="Punto final" value={destino} onChange={setDestino} dot="bg-primary" />
-          <button
-            onClick={() => setEnRuta(true)}
-            disabled={!origen || !destino}
-            className="w-full py-3 rounded-xl text-primary-foreground font-semibold flex items-center justify-center gap-2 disabled:opacity-50 shadow-[var(--shadow-soft)]"
-            style={{ background: "var(--gradient-primary)" }}
-          >
-            <Play className="w-4 h-4" />
-            {enRuta ? "Ruta activa" : "Iniciar simulación"}
-          </button>
+          <PlacesVoiceInput
+            icon={MapPin}
+            placeholder="Punto final"
+            value={destinoText}
+            onChange={setDestinoText}
+            onPlaceSelected={setDestinoPos}
+            dotColor="bg-primary"
+          />
+          {!enRuta ? (
+            <button
+              onClick={iniciarRuta}
+              disabled={!origenPos || !destinoPos || iniciando}
+              className="w-full py-3 rounded-xl text-primary-foreground font-semibold flex items-center justify-center gap-2 disabled:opacity-50 shadow-[var(--shadow-soft)]"
+              style={{ background: "var(--gradient-primary)" }}
+            >
+              {iniciando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              {iniciando ? "Iniciando…" : "Iniciar ruta"}
+            </button>
+          ) : (
+            <button
+              onClick={detenerRuta}
+              className="w-full py-3 rounded-xl bg-destructive/90 text-destructive-foreground font-semibold flex items-center justify-center gap-2 shadow-[var(--shadow-soft)]"
+            >
+              <Square className="w-4 h-4 fill-current" /> Detener ruta
+            </button>
+          )}
         </div>
+
+        {(origenPos || destinoPos) && (
+          <RouteMap
+            origin={origenPos}
+            destination={destinoPos}
+            extraMarkers={extraMarkers}
+            showMetropolitano
+            onRouteInfo={setRouteInfo}
+            className="mb-4"
+          />
+        )}
+
+        {routeInfo && (
+          <div className="flex items-center justify-between bg-card rounded-xl px-4 py-2.5 mb-3 shadow-sm border border-border">
+            <div className="flex items-center gap-2 text-sm text-foreground">
+              <RouteIcon className="w-4 h-4 text-primary" />
+              <span>{routeInfo.distanceText}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-foreground">
+              <Clock className="w-4 h-4 text-primary" />
+              <span>{routeInfo.durationText}</span>
+            </div>
+          </div>
+        )}
+
+        {metroHint && (
+          <div className="rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2 border bg-secondary/60 border-border">
+            <TrainFront className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+            <span className="text-xs text-foreground leading-snug">{metroHint}</span>
+          </div>
+        )}
 
         {enRuta && (
           <>
@@ -59,20 +198,25 @@ function ConductorRuta() {
               </span>
             </div>
 
-            <Mapa pasajeroSel={pasajeroSel} onSelect={setPasajeroSel} />
-
-            <div className="mt-4 space-y-2">
+            <div className="space-y-2">
               {pasajerosMock.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setPasajeroSel(p.id)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-[var(--transition-smooth)] text-left ${pasajeroSel === p.id ? "bg-primary/5 border-primary/40" : "bg-card border-border hover:border-primary/20"}`}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-[var(--transition-smooth)] text-left ${
+                    pasajeroSel === p.id ? "bg-primary/5 border-primary/40" : "bg-card border-border hover:border-primary/20"
+                  }`}
                 >
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0" style={{ background: "var(--gradient-primary)" }}>
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0"
+                    style={{ background: "var(--gradient-primary)" }}
+                  >
                     {p.cantidad}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground text-sm">{p.nombre} · {p.cantidad} {p.cantidad === 1 ? "persona" : "personas"}</div>
+                    <div className="font-medium text-foreground text-sm">
+                      {p.nombre} · {p.cantidad} {p.cantidad === 1 ? "persona" : "personas"}
+                    </div>
                     <div className="text-xs text-muted-foreground truncate">{p.punto}</div>
                   </div>
                 </button>
@@ -81,64 +225,6 @@ function ConductorRuta() {
           </>
         )}
       </main>
-    </div>
-  );
-}
-
-function RutaField({ icon: Icon, placeholder, value, onChange, dot }: { icon: React.ComponentType<{ className?: string }>; placeholder: string; value: string; onChange: (v: string) => void; dot: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
-      <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-      />
-      <button className="w-9 h-9 rounded-full bg-secondary text-primary hover:bg-accent flex items-center justify-center transition-[var(--transition-smooth)]">
-        <Mic className="w-4 h-4" />
-      </button>
-    </div>
-  );
-}
-
-function Mapa({ pasajeroSel, onSelect }: { pasajeroSel: string | null; onSelect: (id: string) => void }) {
-  return (
-    <div className="relative w-full h-72 rounded-2xl overflow-hidden shadow-[var(--shadow-soft)] border border-border" style={{ background: "var(--gradient-soft)" }}>
-      {/* Grid mapa */}
-      <svg className="absolute inset-0 w-full h-full opacity-40" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
-            <path d="M 30 0 L 0 0 0 30" fill="none" stroke="oklch(0.55 0.18 250)" strokeWidth="0.5" opacity="0.3" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-        {/* Ruta */}
-        <path d="M 20,250 Q 100,180 180,150 T 340,60" fill="none" stroke="oklch(0.55 0.18 250)" strokeWidth="3" strokeDasharray="6 4" strokeLinecap="round" />
-      </svg>
-
-      {/* Bus */}
-      <div className="absolute bottom-3 left-3 w-11 h-11 rounded-full flex items-center justify-center text-primary-foreground shadow-[var(--shadow-elevated)] z-10" style={{ background: "var(--gradient-primary)" }}>
-        <BusIcon className="w-5 h-5" />
-      </div>
-
-      {/* Pasajeros */}
-      {pasajerosMock.map((p) => (
-        <button
-          key={p.id}
-          onClick={() => onSelect(p.id)}
-          className="absolute -translate-x-1/2 -translate-y-1/2 group"
-          style={{ left: `${p.x}%`, top: `${p.y}%` }}
-        >
-          <div className={`relative w-9 h-9 rounded-full bg-card border-2 flex items-center justify-center shadow-[var(--shadow-soft)] transition-[var(--transition-smooth)] ${pasajeroSel === p.id ? "border-primary scale-125" : "border-border group-hover:scale-110"}`}>
-            <Users className="w-4 h-4 text-primary" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-              {p.cantidad}
-            </span>
-          </div>
-        </button>
-      ))}
     </div>
   );
 }

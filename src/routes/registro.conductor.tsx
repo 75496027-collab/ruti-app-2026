@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
-import { Mic, MicOff, Upload, CheckCircle2, AlertTriangle, FileText, Bot, HelpCircle, Loader2, Send, X, LogIn } from "lucide-react";
+import { Mic, MicOff, Upload, CheckCircle2, AlertTriangle, FileText, Bot, HelpCircle, Loader2, Send, X, LogIn, MapPin } from "lucide-react";
 import { documentosBase, type DocumentoConductor } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -399,6 +399,7 @@ function DocumentosStep({ onDone }: { onDone: () => void }) {
 
 function DocCard({ doc, onUpdate }: { doc: DocumentoConductor; onUpdate: (p: Partial<DocumentoConductor>) => void }) {
   const [helpOpen, setHelpOpen] = useState(false);
+  const [helpSeed, setHelpSeed] = useState<string | null>(null);
   const estadoUI = {
     pendiente: { color: "bg-muted text-muted-foreground", icon: FileText, label: "Pendiente" },
     validado: { color: "bg-success/15 text-success", icon: CheckCircle2, label: "Validado" },
@@ -406,6 +407,11 @@ function DocCard({ doc, onUpdate }: { doc: DocumentoConductor; onUpdate: (p: Par
     vencido: { color: "bg-destructive/15 text-destructive", icon: AlertTriangle, label: "Vencido" },
   }[doc.estado];
   const Icon = estadoUI.icon;
+
+  const abrirAyuda = (seed: string | null) => {
+    setHelpSeed(seed);
+    setHelpOpen(true);
+  };
 
   return (
     <div className="bg-card rounded-xl p-4 border border-border shadow-sm">
@@ -415,7 +421,7 @@ function DocCard({ doc, onUpdate }: { doc: DocumentoConductor; onUpdate: (p: Par
         </div>
         <button
           type="button"
-          onClick={() => setHelpOpen(true)}
+          onClick={() => abrirAyuda(null)}
           className="text-primary hover:bg-secondary p-1 rounded-md"
           title="Pedir ayuda al asistente IA"
         >
@@ -450,21 +456,51 @@ function DocCard({ doc, onUpdate }: { doc: DocumentoConductor; onUpdate: (p: Par
       {doc.archivo && (
         <div className="text-xs text-muted-foreground mt-2 truncate">📎 {doc.archivo}</div>
       )}
-      {helpOpen && <AssistantModal docName={doc.nombre} onClose={() => setHelpOpen(false)} />}
+
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <button
+          type="button"
+          onClick={() => abrirAyuda(`No tengo mi ${doc.nombre} a la mano. ¿Dónde lo tramito paso a paso en Lima y cuánto cuesta?`)}
+          className="text-xs px-2 py-2 rounded-lg bg-warning/15 text-warning-foreground border border-warning/30 flex items-center justify-center gap-1 hover:bg-warning/25 transition-[var(--transition-smooth)]"
+        >
+          <MapPin className="w-3.5 h-3.5" />
+          No lo tengo
+        </button>
+        <button
+          type="button"
+          onClick={() => abrirAyuda(`No entiendo qué es ${doc.nombre}. Explícamelo en simple y dime si lo necesito para ser conductor en Perú.`)}
+          className="text-xs px-2 py-2 rounded-lg bg-secondary text-foreground border border-border flex items-center justify-center gap-1 hover:bg-accent transition-[var(--transition-smooth)]"
+        >
+          <Bot className="w-3.5 h-3.5" />
+          Explícame
+        </button>
+      </div>
+
+      {helpOpen && <AssistantModal docName={doc.nombre} seedQuestion={helpSeed} onClose={() => setHelpOpen(false)} />}
     </div>
   );
 }
 
-function AssistantModal({ docName, onClose }: { docName: string; onClose: () => void }) {
+function AssistantModal({
+  docName,
+  seedQuestion,
+  onClose,
+}: {
+  docName: string;
+  seedQuestion?: string | null;
+  onClose: () => void;
+}) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
 
   const ask = async (q?: string) => {
     const finalQ = (q ?? question).trim();
     if (!finalQ) return;
     setLoading(true);
     setAnswer(null);
+    setLastQuestion(finalQ);
     try {
       const { data, error } = await supabase.functions.invoke("ruti-assistant", {
         body: { question: finalQ, context: docName },
@@ -479,9 +515,18 @@ function AssistantModal({ docName, onClose }: { docName: string; onClose: () => 
     }
   };
 
+  // Pre-rellena con la pregunta semilla si llega
+  useEffect(() => {
+    if (seedQuestion) {
+      ask(seedQuestion);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedQuestion]);
+
   const sugerencias = [
+    `No tengo mi ${docName}. ¿Dónde lo tramito en Lima y cuánto cuesta?`,
+    `¿Qué es ${docName} y por qué lo necesito como conductor?`,
     `¿Cómo subo correctamente mi ${docName}?`,
-    `¿Dónde tramito ${docName} si no lo tengo?`,
     "¿Qué formato de archivo se acepta?",
   ];
 
@@ -501,9 +546,24 @@ function AssistantModal({ docName, onClose }: { docName: string; onClose: () => 
           <button onClick={onClose} className="p-1 rounded-md hover:bg-secondary text-muted-foreground"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="p-4 space-y-3 max-h-[50vh] overflow-y-auto">
-          {!answer && !loading && (
-            <div className="space-y-2">
+        <div className="p-4 space-y-3 max-h-[55vh] overflow-y-auto">
+          {lastQuestion && (
+            <div className="bg-primary text-primary-foreground rounded-xl px-3 py-2 text-sm ml-auto max-w-[90%] w-fit">
+              {lastQuestion}
+            </div>
+          )}
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
+              <Loader2 className="w-4 h-4 animate-spin" /> Consultando a la IA…
+            </div>
+          )}
+          {answer && !loading && (
+            <div className="bg-secondary/60 rounded-xl p-3 text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+              {answer}
+            </div>
+          )}
+          {!loading && (
+            <div className="space-y-2 pt-1">
               <p className="text-xs text-muted-foreground">Preguntas frecuentes:</p>
               {sugerencias.map((s) => (
                 <button
@@ -515,14 +575,6 @@ function AssistantModal({ docName, onClose }: { docName: string; onClose: () => 
                 </button>
               ))}
             </div>
-          )}
-          {loading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
-              <Loader2 className="w-4 h-4 animate-spin" /> Consultando…
-            </div>
-          )}
-          {answer && (
-            <div className="bg-secondary/60 rounded-xl p-3 text-sm text-foreground whitespace-pre-wrap">{answer}</div>
           )}
         </div>
 
